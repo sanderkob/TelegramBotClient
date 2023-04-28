@@ -59,14 +59,6 @@ void JsonWebClient::reConnect()
     NetClient->stop();
     DOUT (("not connected (yet)")); 
   }
-  DOUT ("connecting ...");
-  this->State =
-    (NetClient->connect(this->Host.c_str(), this->Port) == 1)
-    ? JwcClientState::Connected
-    : JwcClientState::Unconnected;
-  DOUT ("connected");
-  long ContentLength = JWC_BUFF_SIZE;
-  bool HttpStatusOk = false;
 }
 
 bool JsonWebClient::stop()
