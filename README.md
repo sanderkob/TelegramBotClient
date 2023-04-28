@@ -47,3 +47,4 @@ This code is released under the MIT License
   - added a watchdog timer on the polling sequence (stuck in polling)
   - added a FIFO message buffer 
 - added disable_notification in the postMessage overloads
+- change from ArduinoJson v5 to v6
