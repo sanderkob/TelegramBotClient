@@ -1,5 +1,7 @@
 #include "TelegramBotClient.h"
 
+unsigned long markPollWDT = 0;
+
 TelegramBotClient::TelegramBotClient (
   String token,
   Client& sslPollClient,
@@ -8,7 +10,7 @@ TelegramBotClient::TelegramBotClient (
   TBC_CALLBACK_ERROR_SIGNATURE
 )
 {
-  DOUT ("New TelegramBotClient");
+  DOUT (F("New TelegramBotClient"));
   this->Parallel = (sslPostClient != sslPollClient);
   this->SslPollClient = new JsonWebClient(
     &sslPollClient, TELEGRAMHOST, TELEGRAMPORT, this,
@@ -17,7 +19,7 @@ TelegramBotClient::TelegramBotClient (
     &sslPostClient, TELEGRAMHOST, TELEGRAMPORT, this,
     callbackPostSuccess, callbackPostError);
   this->Token = String(token);
-  DOUTKV ("Token", this->Token);
+  DOUTKV (F("Token"), this->Token);
   this->setCallbacks(
     callbackReceive,
     callbackError);
@@ -32,7 +34,7 @@ void TelegramBotClient::setCallbacks (
   TBC_CALLBACK_RECEIVE_SIGNATURE,
   TBC_CALLBACK_ERROR_SIGNATURE)
 {
-  DOUT ("setCallbacks");
+  DOUT (F("setCallbacks"));
   this->callbackReceive = callbackReceive;
   this->callbackError = callbackError;
 }
@@ -41,6 +43,7 @@ void TelegramBotClient::begin(
   TBC_CALLBACK_RECEIVE_SIGNATURE,
   TBC_CALLBACK_ERROR_SIGNATURE)
 {
+  markPollWDT = millis();
   setCallbacks(
     callbackReceive,
     callbackError);
@@ -49,6 +52,24 @@ void TelegramBotClient::begin(
 
 bool TelegramBotClient::loop()
 {
+  if (millis()-markPollWDT > POLL_WDT)
+  {
+    Serial.println(F("Restarting..."));
+    ESP.restart();
+  }
+  if (msgCount > 0 &&  (SslPostClient-> state() == JwcClientState::Unconnected
+      || Parallel)
+     )
+  {
+    DOUTKV(F("startPosting Outpointer"), msgOutPointer);
+    DOUTKV(F("startPosting msgCount"), msgCount);
+    startPosting(msgStore[msgOutPointer]);
+    msgOutPointer++;
+    msgOutPointer %= 5;
+    msgCount--;
+    return true;
+  }
+   
   SslPollClient->loop();
   SslPostClient->loop();
 
@@ -56,8 +77,8 @@ bool TelegramBotClient::loop()
     SslPollClient->state() == JwcClientState::Unconnected
     &&
     ( SslPostClient-> state() == JwcClientState::Unconnected
-      || Parallel
-    ))
+      || Parallel)
+     )
   {
     startPolling();
     return true;
@@ -67,7 +88,7 @@ bool TelegramBotClient::loop()
 
 void TelegramBotClient::startPolling()
 {
-  DOUT("startPolling");
+  DOUT(F("startPolling"));
   String httpCommands[] =
   {
     "GET /bot"
@@ -97,46 +118,50 @@ String charToString(const char* tmp)
 
 void TelegramBotClient::pollSuccess(JwcProcessError err, JsonObject& payload)
 {
-  DOUT("pollSuccess");
+  markPollWDT = millis();
+  DOUT(F("pollSuccess"));
   if (!payload["ok"])
   {
-    DOUT("Skip message, Server error");
+    DOUT(F("Skip message, Server error"));
     if (callbackError != 0)
       callbackError(TelegramProcessError::RetPollErr, err);
     return;
   }
   Message* msg = new Message();
   msg->UpdateId = payload["result"][0]["update_id"];
-  DOUTKV("UpdateId", msg->UpdateId);
+  DOUTKV(F("UpdateId"), msg->UpdateId);
   LastUpdateId = msg->UpdateId + 1;
   msg->MessageId = payload["result"][0]["message"]["message_id"];
-  DOUTKV("MessageId", msg->MessageId);
+  DOUTKV(F("MessageId"), msg->MessageId);
   msg->FromId = payload["result"][0]["message"]["from"]["id"];
-  DOUTKV("FromId", msg->FromId);
+  DOUTKV(F("FromId"), msg->FromId);
   msg->FromIsBot = payload["result"][0]["message"]["from"]["is_bot"];
-  DOUTKV("FromIsBot", msg->FromIsBot);
+  DOUTKV(F("FromIsBot"), msg->FromIsBot);
   msg->FromFirstName = charToString(payload["result"][0]["message"]["from"]["first_name"]);
-  DOUTKV("FromFirstName", msg->FromFirstName);
+  DOUTKV(F("FromFirstName"), msg->FromFirstName);
   msg->FromLastName = charToString(payload["result"][0]["message"]["from"]["last_name"]);
-  DOUTKV("FromLastName", msg->FromLastName);
+  DOUTKV(F("FromLastName"), msg->FromLastName);
   msg->FromLanguageCode = charToString(payload["result"][0]["message"]["from"]["language_code"]);
-  DOUTKV("FromLanguageCode", msg->FromLanguageCode);
+  DOUTKV(F("FromLanguageCode"), msg->FromLanguageCode);
   msg->ChatId = payload["result"][0]["message"]["chat"]["id"];
-  DOUTKV("ChatId", msg->ChatId);
+  DOUTKV(F("ChatId"), msg->ChatId);
   msg->ChatFirstName = charToString(payload["result"][0]["message"]["chat"]["first_name"]);
-  DOUTKV("ChatFirstName", msg->ChatFirstName);
+  DOUTKV(F("ChatFirstName"), msg->ChatFirstName);
   msg->ChatLastName = charToString(payload["result"][0]["message"]["chat"]["last_name"]);
-  DOUTKV("ChatLastName", msg->ChatLastName);
+  DOUTKV(F("ChatLastName"), msg->ChatLastName);
   msg->ChatType = charToString(payload["result"][0]["message"]["chat"]["type"]);
-  DOUTKV("ChatType", msg->ChatType);
+  DOUTKV(F("ChatType"), msg->ChatType);
   msg->Text = charToString(payload["result"][0]["message"]["text"]);
-  DOUTKV("Text", msg->Text);
+  DOUTKV(F("Text"), msg->Text);
   msg->Date = payload["result"][0]["message"]["date"];
-  DOUTKV("Date", msg->Date);
+  DOUTKV(F("Date"), msg->Date);
+  msg->disable_notification = payload["result"][0]["message"]["disable_notification"];
+  DOUTKV(F("disable_notification"), msg->disable_notification);
+  
   if (msg->FromId == 0 || msg->ChatId == 0 || msg->Text.length() == 0)
   {
     // no message, just the timeout from server
-    DOUT("Timout by server");
+    DOUT(F("Timout by server"));
   }
   else
   {
@@ -149,7 +174,7 @@ void TelegramBotClient::pollSuccess(JwcProcessError err, JsonObject& payload)
 }
 void TelegramBotClient::pollError(JwcProcessError err, Client* client)
 {
-  DOUT("pollError");
+  DOUT(F("pollError"));
   switch (err)
   {
     case JwcProcessError::HttpErr: {
@@ -183,7 +208,7 @@ void TelegramBotClient::pollError(JwcProcessError err, Client* client)
 
 void TelegramBotClient::startPosting(String msg) {
   if (!Parallel) SslPollClient->stop();
-
+  DOUT(F("Stopping PollClient"));
   String httpCommands[] =
   {
     "POST /bot"
@@ -205,33 +230,34 @@ void TelegramBotClient::startPosting(String msg) {
 
     msg
   };
+  DOUTKV(F("posting]"), msg);
   SslPostClient->fire(httpCommands, 8);
 }
 
-void TelegramBotClient::postMessage(long chatId, String text, TBCKeyBoard &keyBoard)
+void TelegramBotClient::postMessage(long chatId, String text, TBCKeyBoard &keyBoard, bool disable_notification)
 {
   if (chatId == 0) {
-    DOUT("Chat not defined.");
+    DOUT(F("Chat not defined."));
     return;
   }
 
-  DOUT("postMessage");
-  DOUTKV("chatId", chatId);
-  DOUTKV("text", text);
+  DOUT(F("postMessage"));
+  DOUTKV(F("chatId"), chatId);
+  DOUTKV(F("text"), text);
 
   DynamicJsonBuffer jsonBuffer (JWC_BUFF_SIZE);
   JsonObject& obj = jsonBuffer.createObject();
   obj["chat_id"] = chatId;
   obj["text"] = text;
-
+  obj["disable_notification"] = disable_notification;
   if (keyBoard.length() > 0 )
   {
     JsonObject& jsonReplyMarkup = obj.createNestedObject("reply_markup");
     JsonArray& jsonKeyBoard = jsonReplyMarkup.createNestedArray("keyboard");
-    DOUTKV("keyBoard.length()", keyBoard.length());
+    DOUTKV(F("keyBoard.length()"), keyBoard.length());
     for (int i = 0; i < keyBoard.length(); i++)
     {
-      DOUTKV("board.length(i): ", keyBoard.length(i));
+      DOUTKV(F("board.length(i): "), keyBoard.length(i));
       JsonArray& jsonRow = jsonKeyBoard.createNestedArray();
       for (int ii = 0; ii < keyBoard.length(i); ii++)
       {
@@ -246,23 +272,33 @@ void TelegramBotClient::postMessage(long chatId, String text, TBCKeyBoard &keyBo
 
   String msgString;
   obj.printTo(msgString);
-  DOUTKV("json", msgString);
-  startPosting(msgString);
+  DOUTKV(F("json"), msgString);
+//  startPosting(msgString);
+  if (msgCount > MAX_MSG) return ;
+  if (msgString.length() > MSG_LEN) return;
+  msgCount++;
+  DOUTKV(F("msgCount"), msgCount);
 
+  DOUTKV(F("msgInPointer"), msgInPointer);
+  msgString.toCharArray(msgStore[msgInPointer],msgString.length());
+  DOUTKV(F("msgStore[msgInPointer]"), msgStore[msgInPointer]);
+  msgInPointer++;
+  msgInPointer %= 5; // points to next available store
 }
 
 void TelegramBotClient::postSuccess(JwcProcessError err, JsonObject& json)
 {
-  DOUT("postSuccess");
-  json.printTo(Serial);
+  markPollWDT = millis();
+  DOUT(F("postSuccess"));
+//json.printTo(Serial);
 }
 void TelegramBotClient::postError(JwcProcessError err, Client* client)
 {
-  DOUT("postError");
+  DOUT(F("postError"));
   while (client->available() > 0)
   {
     String line = client->readStringUntil('\n');
-    DOUTKV("line", line);
+    DOUTKV(F("line"), line);
   }
 }
 

@@ -7,6 +7,10 @@
 
     Part of TelegramBotClient (https://github.com/schlingensiepen/TelegramBotClient)
     Jörn Schlingensiepen <joern@schlingensiepen.com>
+    mods:
+    JWCbufsize mod 1300 -> 1024
+    strings in PROGMEM to conserve heap memory
+    watchdog timer on loss of connection	
 */
 
 #pragma once
@@ -20,12 +24,13 @@
 
 #ifndef JWC_BUFF_SIZE
 #ifdef ESP8266
-#define JWC_BUFF_SIZE 1000
+#define JWC_BUFF_SIZE 1024
 #else
 #define JWC_BUFF_SIZE 10000
 #endif
 #endif
 
+#define CONNECT_WDT 35000 // loss of connection
 
 /**
    \class JwcProcessError

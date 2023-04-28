@@ -1,3 +1,5 @@
+#include <ArduinoJson.h>
+
 /**
     \file TelegramBotClient.h
     \brief Header of a simple client sending and receiving message
@@ -8,6 +10,9 @@
 
     Part of TelegramBotClient (https://github.com/schlingensiepen/TelegramBotClient)
     Jörn Schlingensiepen <joern@schlingensiepen.com>
+    MSG_LEN mod 1300 -> 300 (192 too small for some messages)
+    strings in PROGMEM
+    total savings 5kB in dynamic memory
 */
 #pragma once
 #ifndef TelegramBotClient_h
@@ -21,7 +26,11 @@
 
 #define TELEGRAMHOST F("api.telegram.org")
 #define TELEGRAMPORT 443
-#define POLLINGTIMEOUT 600
+#define POLLINGTIMEOUT 30
+#define CONNECT_WDT 35000
+#define POLL_WDT 300000
+#define MAX_MSG 5
+#define MSG_LEN 300
 #define USERAGENTSTRING F("telegrambotclient /0.1")
 
 // Inspired by PubSubClient by Nick O'Leary (http://knolleary.net)
@@ -148,6 +157,11 @@ struct Message {
       Date the message was sent in Unix time
   */
   long Date;
+    /** disable_notification: disables message notification
+      
+  */
+  bool disable_notification;
+
 };
 
 /**
@@ -317,6 +331,14 @@ class TelegramBotClient
     long LastUpdateId = 0;
     /** Secure Token provided by BotFather */
     String Token;
+    /** numberr of messages to be sent */
+    int msgCount = 0;
+    /** buffer for 5 messages of max. 512 bytes each*/
+    char msgStore[MAX_MSG] [MSG_LEN];
+    /** pointer to first message to be stored */
+    int msgInPointer = 0;
+        /** pointer to first message to be sent out */
+    int msgOutPointer = 0;
     /** Indicates if the client uses two underlying client objects
         allowing posting while keeping the poll call open in parallel.
     */
@@ -444,26 +466,59 @@ class TelegramBotClient
 
         \param [in] chatId Id of the chat the message shall be sent to.
         \param [in] text Text of the message
-        \param [in] keyBoard Optional. Keyboard to be send with this message.
+        \param [in] keyBoard. Keyboard to be send with this message.
+        \param [in] disable_notification, disable_notification flag of the message
         \return Nothing
 
         \details Post a message to a given chat. 
         (Only text messages and custom keyboards are supported, yet.)
     */
-    void postMessage(long chatId, String text, TBCKeyBoard& keyBoard);
+    void postMessage(long chatId, String text, TBCKeyBoard& keyBoard, bool disable_notification);
     /**
         \brief Post a message
 
         \param [in] chatId Id of the chat the message shall be sent to.
         \param [in] text Text of the message
+        \param [in] keyBoard Optional. Keyboard to be send with this message.
+        \param [in] disable_notification, disable_notification flag of the message
         \return Nothing
 
         \details Post a message to a given chat. 
         (Only text messages and custom keyboards are supported, yet.)
     */
 
-    void postMessage(long chatId, String text) {TBCKeyBoard keyBoard(0);
-      postMessage(chatId, text, keyBoard);
+    void postMessage(long chatId, String text, bool disable_notification) {TBCKeyBoard keyBoard(0);
+      postMessage(chatId, text, keyBoard, disable_notification);
+    }
+        /**
+        \brief Post a message
+
+        \param [in] chatId Id of the chat the message shall be sent to.
+        \param [in] text Text of the message
+        \param [in] keyBoard. Keyboard to be send with this message.
+        \param [in] disable_notification Optional, disable_notification flag of the message
+        \return Nothing
+
+        \details Post a message to a given chat. 
+        (Only text messages and custom keyboards are supported, yet.)
+        */
+    void postMessage(long chatId, String text, TBCKeyBoard& keyBoard) {bool disable_notification = false;
+      postMessage(chatId, text, keyBoard, disable_notification);
+    }
+        /**
+        \brief Post a message
+
+        \param [in] chatId Id of the chat the message shall be sent to.
+        \param [in] text Text of the message
+        \param [in] keyBoard Optional. Keyboard to be send with this message.
+        \param [in] disable_notification Optional, disable_notification flag of the message
+        \return Nothing
+
+        \details Post a message to a given chat. 
+        (Only text messages and custom keyboards are supported, yet.)
+    */
+    void postMessage(long chatId, String text) {TBCKeyBoard keyBoard(0); bool disable_notification = false;
+      postMessage(chatId, text, keyBoard, disable_notification);
     }
     /**
         \brief Callback called by JSONWebClient

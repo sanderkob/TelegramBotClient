@@ -40,3 +40,10 @@ platforms.
 
 ## License
 This code is released under the MIT License
+
+## Modifications
+- to make the programme more robust in case of bad a internet connection
+    added a watchdog timer on the connection to server
+    added a watchdog timer on the polling sequence (stuck in polling)
+    added a FIFO message buffer 
+- added disable_notification in the postMessage overloads
