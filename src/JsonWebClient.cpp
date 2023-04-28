@@ -21,7 +21,7 @@ JsonWebClient::JsonWebClient (
   JWC_CALLBACK_MESSAGE_SIGNATURE,
   JWC_CALLBACK_ERROR_SIGNATURE)
 {
-  DOUT (F("New JsonWebClient"));
+  DOUT (("New JsonWebClient"));
   this->NetClient = netClient;
   this->State = JwcClientState::Unconnected;
   this->Host = host;
@@ -32,16 +32,16 @@ JsonWebClient::JsonWebClient (
 }
 void JsonWebClient::reConnect()
 {
-  DOUT (F("reConnect"));
+  DOUT (("reConnect"));
 #ifdef ESP8266
-  DOUTKV(F("ESP.getFreeHeap()"), ESP.getFreeHeap());
+  DOUTKV(("ESP.getFreeHeap()"), ESP.getFreeHeap());
 #endif
 //  if (NetClient->connected())
 //  {
-    DOUT (F("stop"));
+    DOUT (("stop"));
     stop();
 //  }
-  DOUT (F("connecting ..."));
+  DOUT (("connecting ..."));
             //  this->State =
             //    (NetClient->connect(this->Host.c_str(), this->Port) == 1)
             //    ? JwcClientState::Connected
@@ -49,7 +49,7 @@ void JsonWebClient::reConnect()
   if (NetClient->connect(this->Host.c_str(), this->Port) == 1)
   {
     this->State = JwcClientState::Connected;
-    DOUT (F("connected"));
+    DOUT (("connected"));
     long ContentLength = JWC_BUFF_SIZE;
     bool HttpStatusOk = false;    
   }
@@ -57,7 +57,7 @@ void JsonWebClient::reConnect()
   {
     this->State = JwcClientState::Unconnected;
     NetClient->stop();
-    DOUT (F("not connected (yet)")); 
+    DOUT (("not connected (yet)")); 
   }
   DOUT ("connecting ...");
   this->State =
@@ -71,7 +71,7 @@ void JsonWebClient::reConnect()
 
 bool JsonWebClient::stop()
 {
-  DOUT(F("stop"));
+  DOUT(("stop"));
   NetClient->stop();
   State = JwcClientState::Unconnected;
   return true;
@@ -80,16 +80,16 @@ bool JsonWebClient::stop()
 bool JsonWebClient::processHeader()
 {
   String header = NetClient->readStringUntil('\n');
-  DOUTKV(F("Got header"), header);
+  DOUTKV(("Got header"), header);
   if (header.startsWith("Content-Length:"))
   {
     ContentLength = header.substring(15).toInt(); //TODO check for error
-    DOUTKV (F("ContentLength"), ContentLength);
+    DOUTKV (("ContentLength"), ContentLength);
   }
-  if (header.startsWith(F("HTTP/1.1 200 OK")))
+  if (header.startsWith(("HTTP/1.1 200 OK")))
   {
     HttpStatusOk = true;
-    DOUTKV (F("HttpStatusOk"), HttpStatusOk);
+    DOUTKV (("HttpStatusOk"), HttpStatusOk);
   }
   if (header == "\r") return false; // End of headers by empty line --> http
   return true;
@@ -98,16 +98,16 @@ bool JsonWebClient::processJson()
 {
   if (!HttpStatusOk)
   {
-    DOUT(F("!HttpStatusOk"));
+    DOUT(("!HttpStatusOk"));
     if (callbackError != 0 && CallBackObject != 0)
       callbackError(this->CallBackObject, JwcProcessError::HttpErr, this->NetClient);
     stop();
     return false;
   }
-  DOUT(F("Parsing JSON"));
+  DOUT(("Parsing JSON"));
   if (ContentLength > JWC_BUFF_SIZE)
   {
-    DOUT(F("Message to big to parse"));
+    DOUT(("Message to big to parse"));
     if (callbackError != 0 && CallBackObject != 0)
       callbackError(this->CallBackObject, JwcProcessError::MsgTooBig, this->NetClient);
     stop();
@@ -115,21 +115,22 @@ bool JsonWebClient::processJson()
     return false;
   }
   DynamicJsonDocument jsonBuffer (JWC_BUFF_SIZE);
+  JsonObject payload = jsonBuffer.to<JsonObject>();
   deserializeJson(jsonBuffer, *NetClient);
   // JsonObject payload = jsonBuffer.parse(*NetClient); //ArduinoJson v5
-  if (!payload.success())//ArduinoJson v5
-  if (!payload.isNull()) 
+  // if (!payload.success())//ArduinoJson v5
+  if (jsonBuffer.isNull()) 
   {
-    DOUT(F("Skip message, JSON error"));
+    DOUT(("Skip message, JSON error"));
     if (callbackError != 0 && CallBackObject != 0)
       callbackError(this->CallBackObject, JwcProcessError::MsgJsonErr, this->NetClient);
     stop();
     return false;
   }
 
-  DOUT(F("Message successfully parsed."));
+  DOUT(("Message successfully parsed."));
 //  payload.printTo(Serial); //ArduinoJson v5
-serializeJson(payload, Serial);
+serializeJson(jsonBuffer, Serial);
 //  Serial.println("" );
 
   if (callbackSuccess != 0 && CallBackObject != 0)
@@ -142,14 +143,14 @@ bool JsonWebClient::loop()
   bool res = false;
   	if (!markWdt && millis()-markWdt > CONNECT_WDT)
   	{
-  		DOUT(F("Client timeout, setting to JwcClientState::Unconnected"));
+  		DOUT(("Client timeout, setting to JwcClientState::Unconnected"));
   		State = JwcClientState::Unconnected; // force new polling sequence
   		return res;
   	}  
   if (State == JwcClientState::Unconnected) return res;
   if (!NetClient->connected() && NetClient->available() == 0)
   {
-    DOUT(F("Client was not connected, setting to JwcClientState::Unconnected"));
+    DOUT(("Client was not connected, setting to JwcClientState::Unconnected"));
     State = JwcClientState::Unconnected;
     return res;
   }
@@ -157,7 +158,7 @@ bool JsonWebClient::loop()
   while (NetClient->available() > 0 && State != JwcClientState::Unconnected)
   {
     res = true;
-    DOUT (F("Received data"));
+    DOUT (("Received data"));
     switch (State)
     {
       case JwcClientState::Waiting : {
@@ -178,7 +179,7 @@ bool JsonWebClient::loop()
   }
   if (!NetClient->connected() && NetClient->available() == 0)
   {
-    DOUT(F("Client is not connected, setting to JwcClientState::unconnected"));
+    DOUT(("Client is not connected, setting to JwcClientState::unconnected"));
     State = JwcClientState::Unconnected;
   }
   return res;
@@ -192,19 +193,20 @@ JwcClientState JsonWebClient::state()
 bool JsonWebClient::fire (String commands[], int count)
 {
   markWdt = millis();
-  DOUT (F("Fire"));
+  DOUT (("Fire"));
   reConnect();
 //  if (!NetClient->connected()) reConnect();
   if (State != JwcClientState::Connected) return false;
   if (!NetClient->connected()) return false;
-  DOUTKV (F("count"), count);
+  DOUTKV (("count"), count);
   for (int i = 0; i < count; i++)
   {
-    DOUTKV (F("command"), commands[i]);
+    DOUTKV (("command"), commands[i]);
     NetClient->println(commands[i]);
   }
   NetClient->flush();
   State = JwcClientState::Waiting;
   loop();
+  return true; // not relevant, since the return value is not used?
 }
 

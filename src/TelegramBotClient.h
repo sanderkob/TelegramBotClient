@@ -24,14 +24,14 @@
 #include <ArduinoJson.h>
 #include "JsonWebClient.h"
 
-#define TELEGRAMHOST F("api.telegram.org")
+#define TELEGRAMHOST ("api.telegram.org")
 #define TELEGRAMPORT 443
 #define POLLINGTIMEOUT 30
 #define CONNECT_WDT 35000
 #define POLL_WDT 300000
 #define MAX_MSG 5
 #define MSG_LEN 300
-#define USERAGENTSTRING F("telegrambotclient /0.1")
+#define USERAGENTSTRING ("telegrambotclient /0.1")
 
 // Inspired by PubSubClient by Nick O'Leary (http://knolleary.net)
 #ifdef ESP8266
