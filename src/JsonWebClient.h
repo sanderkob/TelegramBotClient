@@ -75,10 +75,10 @@ static String toString(JwcProcessError err)
 // Inspired by PubSubClient by Nick O'Leary (http://knolleary.net)
 #ifdef ESP8266
 #include <functional>
-#define JWC_CALLBACK_MESSAGE_SIGNATURE std::function<void(void*, JwcProcessError, JsonObject&)> callbackSuccess
+#define JWC_CALLBACK_MESSAGE_SIGNATURE std::function<void(void*, JwcProcessError, JsonObject)> callbackSuccess
 #define JWC_CALLBACK_ERROR_SIGNATURE std::function<void(void*, JwcProcessError, Client*)> callbackError
 #else
-#define JWC_CALLBACK_MESSAGE_SIGNATURE void (*callbackSuccess)(void*, JwcProcessError, JsonObject&)
+#define JWC_CALLBACK_MESSAGE_SIGNATURE void (*callbackSuccess)(void*, JwcProcessError, JsonObject)
 #define JWC_CALLBACK_ERROR_SIGNATURE void (*callbackError)(void*, JwcProcessError, Client*)
 #endif
 

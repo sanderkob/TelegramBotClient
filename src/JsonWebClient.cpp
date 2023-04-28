@@ -114,9 +114,11 @@ bool JsonWebClient::processJson()
 
     return false;
   }
-  DynamicJsonBuffer jsonBuffer (JWC_BUFF_SIZE);
-  JsonObject& payload = jsonBuffer.parse(*NetClient);
-  if (!payload.success())
+  DynamicJsonDocument jsonBuffer (JWC_BUFF_SIZE);
+  deserializeJson(jsonBuffer, *NetClient);
+  // JsonObject payload = jsonBuffer.parse(*NetClient); //ArduinoJson v5
+  if (!payload.success())//ArduinoJson v5
+  if (!payload.isNull()) 
   {
     DOUT(F("Skip message, JSON error"));
     if (callbackError != 0 && CallBackObject != 0)
@@ -126,7 +128,8 @@ bool JsonWebClient::processJson()
   }
 
   DOUT(F("Message successfully parsed."));
-//  payload.printTo(Serial);
+//  payload.printTo(Serial); //ArduinoJson v5
+serializeJson(payload, Serial);
 //  Serial.println("" );
 
   if (callbackSuccess != 0 && CallBackObject != 0)

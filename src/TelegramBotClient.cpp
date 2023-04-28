@@ -116,7 +116,7 @@ String charToString(const char* tmp)
   return String(tmp);
 }
 
-void TelegramBotClient::pollSuccess(JwcProcessError err, JsonObject& payload)
+void TelegramBotClient::pollSuccess(JwcProcessError err, JsonObject payload)
 {
   markPollWDT = millis();
   DOUT(F("pollSuccess"));
@@ -245,14 +245,14 @@ void TelegramBotClient::postMessage(long chatId, String text, TBCKeyBoard &keyBo
   DOUTKV(F("chatId"), chatId);
   DOUTKV(F("text"), text);
 
-  DynamicJsonBuffer jsonBuffer (JWC_BUFF_SIZE);
-  JsonObject& obj = jsonBuffer.createObject();
+  DynamicDocument jsonBuffer (JWC_BUFF_SIZE);
+  // JsonObject obj = jsonBuffer.createObject(); //ArduinoJson v5
   obj["chat_id"] = chatId;
   obj["text"] = text;
   obj["disable_notification"] = disable_notification;
   if (keyBoard.length() > 0 )
   {
-    JsonObject& jsonReplyMarkup = obj.createNestedObject("reply_markup");
+    JsonObject jsonReplyMarkup = obj.createNestedObject("reply_markup");
     JsonArray& jsonKeyBoard = jsonReplyMarkup.createNestedArray("keyboard");
     DOUTKV(F("keyBoard.length()"), keyBoard.length());
     for (int i = 0; i < keyBoard.length(); i++)
@@ -271,7 +271,8 @@ void TelegramBotClient::postMessage(long chatId, String text, TBCKeyBoard &keyBo
   }
 
   String msgString;
-  obj.printTo(msgString);
+  // obj.printTo(msgString);//ArduinoJson v5
+  serializeJson(obj,msgString);
   DOUTKV(F("json"), msgString);
 //  startPosting(msgString);
   if (msgCount > MAX_MSG) return ;
@@ -286,7 +287,7 @@ void TelegramBotClient::postMessage(long chatId, String text, TBCKeyBoard &keyBo
   msgInPointer %= 5; // points to next available store
 }
 
-void TelegramBotClient::postSuccess(JwcProcessError err, JsonObject& json)
+void TelegramBotClient::postSuccess(JwcProcessError err, JsonObject json)
 {
   markPollWDT = millis();
   DOUT(F("postSuccess"));

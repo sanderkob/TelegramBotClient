@@ -531,7 +531,7 @@ class TelegramBotClient
 
         \note Do not call this method.
     */
-    void pollSuccess(JwcProcessError err, JsonObject& json);
+    void pollSuccess(JwcProcessError err, JsonObject json);
     /**
         \brief Callback called by JSONWebClient
 
@@ -555,7 +555,7 @@ class TelegramBotClient
 
         \note Do not call this method.
     */
-    void postSuccess(JwcProcessError err, JsonObject& json);
+    void postSuccess(JwcProcessError err, JsonObject json);
     /**
         \brief Callback called by JSONWebClient
 
@@ -569,7 +569,7 @@ class TelegramBotClient
     */
     void postError(JwcProcessError err, Client* client);
 
-    static void callbackPollSuccess (void* obj, JwcProcessError err, JsonObject& json)
+    static void callbackPollSuccess (void* obj, JwcProcessError err, JsonObject json)
     {
       if (obj == 0) return;
       TelegramBotClient* botClient = (TelegramBotClient*)obj;
@@ -581,7 +581,7 @@ class TelegramBotClient
       TelegramBotClient* botClient = (TelegramBotClient*)obj;
       botClient->pollError(err, client);
     }
-    static void callbackPostSuccess (void* obj, JwcProcessError err, JsonObject& json)
+    static void callbackPostSuccess (void* obj, JwcProcessError err, JsonObject json)
     {
       if (obj == 0) return;
       TelegramBotClient* botClient = (TelegramBotClient*)obj;
